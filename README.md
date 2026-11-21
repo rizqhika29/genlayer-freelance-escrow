@@ -132,7 +132,7 @@ pytest tests/direct -v
 ```
 
 Test direct mode menjalankan kontrak langsung di Python tanpa Docker dan tanpa
-jaringan (24 test, sekitar 1 detik):
+jaringan (25 test, sekitar 1 detik):
 
 - state machine milestone dan aturan akses (klien / freelancer / orang luar);
 - funding, tenggat, dan perpanjangan tenggat;
