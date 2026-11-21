@@ -140,7 +140,7 @@ def test_double_submit_is_rejected(ctx, default_account, accounts):
     assert tx_execution_failed(submit(ctx, contract, freelancer, note="second"))
 
     assert contract.get_milestone_attempts(args=[0]).call(transaction_context=ctx) == 1
-    assert contract.get_milestone_note(args=[0]).call(transaction_context=ctx) == "pertama"
+    assert contract.get_milestone_note(args=[0]).call(transaction_context=ctx) == "first"
 
 
 def test_double_judge_is_rejected(ctx, default_account, accounts):
