@@ -35,7 +35,7 @@ APPROVE_ANSWER = json.dumps(
     {
         "criteria": [{"id": 1, "met": True, "evidence": "Example Domain"}],
         "score": 90,
-        "reason": "Halaman memuat teks Example Domain.",
+        "reason": "The page shows the text Example Domain.",
     }
 )
 
@@ -68,14 +68,14 @@ def at_time(ctx, iso):
 def deploy(ctx, freelancer):
     factory = get_contract_factory(CONTRACT)
     return factory.deploy(
-        args=["Landing page", "Buat landing page sederhana.", freelancer.address],
+        args=["Landing page", "Build a simple landing page.", freelancer.address],
         transaction_context=ctx,
     )
 
 
 def add_and_fund(ctx, contract):
     tx = contract.add_milestone(
-        args=["Hero", "Halaman memuat teks Example Domain", GEN, DELIVERY_DEADLINE]
+        args=["Hero", "The page shows the text Example Domain", GEN, DELIVERY_DEADLINE]
     ).transact(transaction_context=ctx)
     assert tx_execution_succeeded(tx)
 
@@ -83,7 +83,7 @@ def add_and_fund(ctx, contract):
     assert tx_execution_succeeded(tx)
 
 
-def submit(ctx, contract, freelancer, note="sudah jadi"):
+def submit(ctx, contract, freelancer, note="done"):
     return contract.connect(freelancer).submit_deliverable(
         args=[0, URL, note]
     ).transact(transaction_context=ctx)
@@ -120,7 +120,7 @@ def test_outsider_cannot_submit_or_judge(ctx, default_account, accounts):
     contract = deploy(ctx, freelancer)
     add_and_fund(ctx, contract)
 
-    tx = submit(ctx, contract, outsider, note="nyelip")
+    tx = submit(ctx, contract, outsider, note="sneaking in")
     assert tx_execution_failed(tx)
 
     tx = contract.connect(outsider).judge_milestone(args=[0]).transact(
@@ -136,8 +136,8 @@ def test_double_submit_is_rejected(ctx, default_account, accounts):
     contract = deploy(ctx, freelancer)
     add_and_fund(ctx, contract)
 
-    assert tx_execution_succeeded(submit(ctx, contract, freelancer, note="pertama"))
-    assert tx_execution_failed(submit(ctx, contract, freelancer, note="kedua"))
+    assert tx_execution_succeeded(submit(ctx, contract, freelancer, note="first"))
+    assert tx_execution_failed(submit(ctx, contract, freelancer, note="second"))
 
     assert contract.get_milestone_attempts(args=[0]).call(transaction_context=ctx) == 1
     assert contract.get_milestone_note(args=[0]).call(transaction_context=ctx) == "pertama"

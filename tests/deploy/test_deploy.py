@@ -24,8 +24,8 @@ OUT = ROOT / "deployments"
 NAME = "freelance-escrow"
 
 FREELANCER = "0x" + "22" * 20
-JOB_TITLE = "Landing page produk"
-JOB_SPEC = "Buat landing page sederhana dengan section hero dan form kontak."
+JOB_TITLE = "Product landing page"
+JOB_SPEC = "Build a simple landing page with a hero section and a contact form."
 
 
 def _receipt_json(receipt):

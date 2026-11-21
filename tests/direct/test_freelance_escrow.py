@@ -19,34 +19,34 @@ GEN = 10 ** 18
 FREELANCER = "0x" + "22" * 20
 DELIVERABLE_URL = "https://example.com/demo"
 DELIVERABLE_PAGE = (
-    "<html><body><h1>Hero headline</h1><p>Subheadline produk.</p>"
-    "<a class='cta' href='#kontak'>Hubungi kami</a></body></html>"
+    "<html><body><h1>Hero headline</h1><p>Product subheadline.</p>"
+    "<a class='cta' href='#contact'>Contact us</a></body></html>"
 )
 
 # Two acceptance criteria, one per line: the contract judges each of them.
-CRITERIA = "Ada headline yang jelas\nAda tombol CTA"
+CRITERIA = "A clear headline\nA call-to-action button"
 
 DELIVERY_DEADLINE = 2_000_000_000          # 2033-05-18, after the test clock
 AFTER_DEADLINE = "2033-07-01T00:00:00Z"    # past deadline + recovery grace
 
 APPROVE_ANSWER = (
     '{"criteria": [{"id": 1, "met": true, "evidence": "Hero headline"},'
-    ' {"id": 2, "met": true, "evidence": "Hubungi kami"}],'
-    ' "score": 92, "reason": "Kedua kriteria terlihat di halaman."}'
+    ' {"id": 2, "met": true, "evidence": "Contact us"}],'
+    ' "score": 92, "reason": "Both criteria are visible on the page."}'
 )
 REJECT_ANSWER = (
     '{"criteria": [{"id": 1, "met": true, "evidence": "Hero headline"},'
-    ' {"id": 2, "met": false, "evidence": "tidak ada tombol"}],'
-    ' "score": 20, "reason": "Tombol CTA tidak ada di halaman."}'
+    ' {"id": 2, "met": false, "evidence": "no button"}],'
+    ' "score": 20, "reason": "The call-to-action button is missing."}'
 )
 FLIPPED_ANSWER = (
-    '{"criteria": [{"id": 1, "met": false, "evidence": "tidak ada headline"},'
-    ' {"id": 2, "met": true, "evidence": "Hubungi kami"}],'
-    ' "score": 40, "reason": "Headline tidak ada."}'
+    '{"criteria": [{"id": 1, "met": false, "evidence": "no headline"},'
+    ' {"id": 2, "met": true, "evidence": "Contact us"}],'
+    ' "score": 40, "reason": "The headline is missing."}'
 )
 LOW_SCORE_ALL_MET = (
     '{"criteria": [{"id": 1, "met": true}, {"id": 2, "met": true}],'
-    ' "score": 5, "reason": "Lengkap, tapi penilaian subjektifnya rendah."}'
+    ' "score": 5, "reason": "Complete, but the subjective score is low."}'
 )
 
 
@@ -54,14 +54,14 @@ def deploy_escrow(direct_vm, direct_deploy, sender):
     direct_vm.sender = sender
     return direct_deploy(
         CONTRACT,
-        "Landing page produk",
-        "Buat landing page dengan section hero, daftar harga, dan form kontak.",
+        "Product landing page",
+        "Build a landing page with a hero section, pricing, and a contact form.",
         FREELANCER,
     )
 
 
 def add_and_fund(contract, direct_vm, amount=GEN):
-    contract.add_milestone("Section hero", CRITERIA, amount, DELIVERY_DEADLINE)
+    contract.add_milestone("Hero section", CRITERIA, amount, DELIVERY_DEADLINE)
     direct_vm.value = amount
     contract.fund_milestone(0)
     direct_vm.value = 0
@@ -82,7 +82,7 @@ def mock_judgement(direct_vm, llm_answer, page=DELIVERABLE_PAGE):
     direct_vm.mock_llm(r"impartial adjudicator", llm_answer)
 
 
-def submit(contract, note="Section hero sudah jadi"):
+def submit(contract, note="Hero section is done"):
     contract.submit_deliverable(0, DELIVERABLE_URL, note)
 
 
@@ -93,7 +93,7 @@ def submit(contract, note="Section hero sudah jadi"):
 def test_deploy_stores_job_details(direct_vm, direct_deploy, direct_alice):
     contract = deploy_escrow(direct_vm, direct_deploy, direct_alice)
 
-    assert contract.get_job_title() == "Landing page produk"
+    assert contract.get_job_title() == "Product landing page"
     assert "landing page" in contract.get_job_spec()
     assert to_hex(contract.get_client()) == to_hex(direct_alice)
     assert to_hex(contract.get_freelancer()) == FREELANCER
@@ -105,11 +105,11 @@ def test_deploy_stores_job_details(direct_vm, direct_deploy, direct_alice):
 def test_add_milestone_starts_in_draft(direct_vm, direct_deploy, direct_alice):
     contract = deploy_escrow(direct_vm, direct_deploy, direct_alice)
 
-    index = contract.add_milestone("Section hero", CRITERIA, GEN, DELIVERY_DEADLINE)
+    index = contract.add_milestone("Hero section", CRITERIA, GEN, DELIVERY_DEADLINE)
 
     assert index == 0
     assert contract.get_milestone_count() == 1
-    assert contract.get_milestone_title(0) == "Section hero"
+    assert contract.get_milestone_title(0) == "Hero section"
     assert contract.get_milestone_amount(0) == GEN
     assert contract.get_milestone_state(0) == "draft"
     assert contract.get_milestone_delivery_deadline(0) == DELIVERY_DEADLINE
@@ -123,7 +123,7 @@ def test_add_milestone_rejects_a_past_deadline(
     contract = deploy_escrow(direct_vm, direct_deploy, direct_alice)
 
     with direct_vm.expect_revert("delivery deadline must be in the future"):
-        contract.add_milestone("Section hero", CRITERIA, GEN, 1_000_000_000)
+        contract.add_milestone("Hero section", CRITERIA, GEN, 1_000_000_000)
 
 
 def test_fund_milestone_moves_it_to_funded(direct_vm, direct_deploy, direct_alice):
@@ -136,7 +136,7 @@ def test_fund_milestone_moves_it_to_funded(direct_vm, direct_deploy, direct_alic
 
 def test_fund_with_wrong_amount_reverts(direct_vm, direct_deploy, direct_alice):
     contract = deploy_escrow(direct_vm, direct_deploy, direct_alice)
-    contract.add_milestone("Section hero", CRITERIA, GEN, DELIVERY_DEADLINE)
+    contract.add_milestone("Hero section", CRITERIA, GEN, DELIVERY_DEADLINE)
 
     direct_vm.value = GEN - 1
     with direct_vm.expect_revert("send exactly the milestone amount"):
@@ -150,7 +150,7 @@ def test_only_client_can_add_milestone(direct_vm, direct_deploy, direct_alice):
     act_as_freelancer(direct_vm)
 
     with direct_vm.expect_revert("only the client can add milestones"):
-        contract.add_milestone("Section hero", CRITERIA, GEN, DELIVERY_DEADLINE)
+        contract.add_milestone("Hero section", CRITERIA, GEN, DELIVERY_DEADLINE)
 
 
 def test_only_freelancer_can_submit(direct_vm, direct_deploy, direct_alice):
@@ -182,13 +182,13 @@ def test_freelancer_submits_deliverable(direct_vm, direct_deploy, direct_alice):
     add_and_fund(contract, direct_vm)
 
     act_as_freelancer(direct_vm)
-    submit(contract, note="Versi pertama")
+    submit(contract, note="First version")
 
     assert contract.get_milestone_state(0) == "submitted"
     assert contract.get_milestone_attempts(0) == 1
     assert contract.get_milestone_attempts_left(0) == 2
     assert contract.get_milestone_deliverable_url(0) == DELIVERABLE_URL
-    assert contract.get_milestone_note(0) == "Versi pertama"
+    assert contract.get_milestone_note(0) == "First version"
 
 
 def test_submit_after_the_deadline_reverts(direct_vm, direct_deploy, direct_alice):
