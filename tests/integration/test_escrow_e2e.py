@@ -7,6 +7,10 @@ LLM tokens.
 
 The datetime is pinned with ``genvm_datetime`` so the deadline and recovery
 windows are reproducible instead of depending on wall-clock time.
+
+Note on the client API: a contract method accepts only ``args``; the caller is
+selected with ``contract.connect(account)`` and the transaction context is passed
+to ``.transact()`` / ``.call()``.
 """
 
 import json
@@ -71,13 +75,18 @@ def deploy(ctx, freelancer):
 
 def add_and_fund(ctx, contract):
     tx = contract.add_milestone(
-        args=["Hero", "Halaman memuat teks Example Domain", GEN, DELIVERY_DEADLINE],
-        transaction_context=ctx,
+        args=["Hero", "Halaman memuat teks Example Domain", GEN, DELIVERY_DEADLINE]
     ).transact(transaction_context=ctx)
     assert tx_execution_succeeded(tx)
 
     tx = contract.fund_milestone(args=[0]).transact(value=GEN, transaction_context=ctx)
     assert tx_execution_succeeded(tx)
+
+
+def submit(ctx, contract, freelancer, note="sudah jadi"):
+    return contract.connect(freelancer).submit_deliverable(
+        args=[0, URL, note]
+    ).transact(transaction_context=ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -89,20 +98,16 @@ def test_approval_flow_pays_the_freelancer(ctx, default_account, accounts):
     contract = deploy(ctx, freelancer)
     add_and_fund(ctx, contract)
 
-    tx = contract.submit_deliverable(
-        args=[0, URL, "sudah jadi"], account=freelancer, transaction_context=ctx
-    ).transact(transaction_context=ctx)
-    assert tx_execution_succeeded(tx)
+    assert tx_execution_succeeded(submit(ctx, contract, freelancer))
 
-    tx = contract.judge_milestone(args=[0], transaction_context=ctx).transact(
-        transaction_context=ctx
-    )
+    tx = contract.judge_milestone(args=[0]).transact(transaction_context=ctx)
     assert tx_execution_succeeded(tx)
 
     assert contract.get_milestone_state(args=[0]).call(transaction_context=ctx) == "approved"
     assert contract.get_milestone_checks(args=[0]).call(transaction_context=ctx) == "1=1;"
     assert contract.get_owed(args=[freelancer.address]).call(transaction_context=ctx) == GEN
     assert contract.get_funded_total().call(transaction_context=ctx) == GEN
+    assert contract.get_balance().call(transaction_context=ctx) >= GEN
 
 
 # ---------------------------------------------------------------------------
@@ -115,12 +120,10 @@ def test_outsider_cannot_submit_or_judge(ctx, default_account, accounts):
     contract = deploy(ctx, freelancer)
     add_and_fund(ctx, contract)
 
-    tx = contract.submit_deliverable(
-        args=[0, URL, "nyelip"], account=outsider, transaction_context=ctx
-    ).transact(transaction_context=ctx)
+    tx = submit(ctx, contract, outsider, note="nyelip")
     assert tx_execution_failed(tx)
 
-    tx = contract.judge_milestone(args=[0], account=outsider, transaction_context=ctx).transact(
+    tx = contract.connect(outsider).judge_milestone(args=[0]).transact(
         transaction_context=ctx
     )
     assert tx_execution_failed(tx)
@@ -133,15 +136,8 @@ def test_double_submit_is_rejected(ctx, default_account, accounts):
     contract = deploy(ctx, freelancer)
     add_and_fund(ctx, contract)
 
-    tx = contract.submit_deliverable(
-        args=[0, URL, "pertama"], account=freelancer, transaction_context=ctx
-    ).transact(transaction_context=ctx)
-    assert tx_execution_succeeded(tx)
-
-    tx = contract.submit_deliverable(
-        args=[0, URL, "kedua"], account=freelancer, transaction_context=ctx
-    ).transact(transaction_context=ctx)
-    assert tx_execution_failed(tx)
+    assert tx_execution_succeeded(submit(ctx, contract, freelancer, note="pertama"))
+    assert tx_execution_failed(submit(ctx, contract, freelancer, note="kedua"))
 
     assert contract.get_milestone_attempts(args=[0]).call(transaction_context=ctx) == 1
     assert contract.get_milestone_note(args=[0]).call(transaction_context=ctx) == "pertama"
@@ -152,19 +148,12 @@ def test_double_judge_is_rejected(ctx, default_account, accounts):
     contract = deploy(ctx, freelancer)
     add_and_fund(ctx, contract)
 
-    tx = contract.submit_deliverable(
-        args=[0, URL, "sudah jadi"], account=freelancer, transaction_context=ctx
-    ).transact(transaction_context=ctx)
+    assert tx_execution_succeeded(submit(ctx, contract, freelancer))
+
+    tx = contract.judge_milestone(args=[0]).transact(transaction_context=ctx)
     assert tx_execution_succeeded(tx)
 
-    tx = contract.judge_milestone(args=[0], transaction_context=ctx).transact(
-        transaction_context=ctx
-    )
-    assert tx_execution_succeeded(tx)
-
-    tx = contract.judge_milestone(args=[0], transaction_context=ctx).transact(
-        transaction_context=ctx
-    )
+    tx = contract.judge_milestone(args=[0]).transact(transaction_context=ctx)
     assert tx_execution_failed(tx)
 
     assert contract.get_milestone_state(args=[0]).call(transaction_context=ctx) == "approved"
@@ -175,9 +164,7 @@ def test_recovery_before_the_window_is_rejected(ctx, default_account, accounts):
     contract = deploy(ctx, freelancer)
     add_and_fund(ctx, contract)
 
-    tx = contract.recover_milestone(args=[0], transaction_context=ctx).transact(
-        transaction_context=ctx
-    )
+    tx = contract.recover_milestone(args=[0]).transact(transaction_context=ctx)
     assert tx_execution_failed(tx)
 
     assert contract.get_milestone_state(args=[0]).call(transaction_context=ctx) == "funded"
@@ -193,5 +180,7 @@ def test_recovery_after_the_window_refunds_the_client(ctx, default_account, acco
     assert tx_execution_succeeded(tx)
 
     assert contract.get_milestone_state(args=[0]).call(transaction_context=late) == "expired"
-    assert contract.get_owed(args=[default_account.address]).call(transaction_context=late) == GEN
+    assert contract.get_owed(args=[default_account.address]).call(
+        transaction_context=late
+    ) == GEN
     assert contract.get_owed(args=[freelancer.address]).call(transaction_context=late) == 0
