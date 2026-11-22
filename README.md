@@ -221,7 +221,21 @@ Two config files:
   the outsider are deterministic child keys derived from it, so one secret is
   enough for the three-party tests.
 
-### 3. Deployment test
+### 3. Method coverage (studionet)
+
+`tests/integration/test_methods_e2e.py` calls every remaining public method once
+on the real network with the wallet, including the GEN transfer that direct mode
+cannot simulate.
+
+| Test | What it checks |
+|---|---|
+| `test_every_view_answers` | client, freelancer, title, brief, counters, balance, owed and `get_now` all answer on a fresh contract |
+| `test_milestone_views` | title, criteria, amount, state, attempts, attempts left, deadline, recovery time, score, reason, checks, url and note for one milestone |
+| `test_extend_deadline` | the client moves the deadline and the new value is stored |
+| `test_three_rejections_then_refund` | three rejected submissions end in `failed`, then `refund_milestone` credits the client |
+| `test_withdraw_moves_the_gen` | approval credits the freelancer, `withdraw()` sends the GEN, the owed balance returns to zero and `withdrawn_total` records it |
+
+### 4. Deployment test
 
 `gltest tests/deploy -v --network studionet_wallet` — deploys the contract from
 the configured wallet and writes `deployments/freelance-escrow.studionet.json`
